@@ -1,0 +1,35 @@
+package com.mod98.alpaca.tradingbot.logic;
+
+import com.mod98.alpaca.tradingbot.parsing.TradeSignal;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+public class TradeLogic {
+
+    private final BigDecimal budgetUSD; // 200
+    private final BigDecimal takeProfitPct; // 5
+
+    public TradeLogic(BigDecimal budgetUSD, BigDecimal takeProfitPct) {
+        this.budgetUSD = budgetUSD;
+        this.takeProfitPct = takeProfitPct;
+    }
+
+    public record Plan(int qty, BigDecimal tp, BigDecimal sl) {}
+
+    public Plan buildPlan(TradeSignal s) {
+        int qty = budgetUSD
+                .divide(s.trigger(), 10, RoundingMode.HALF_UP)
+                .setScale(0, RoundingMode.CEILING)
+                .intValue();
+
+        BigDecimal tp = s.trigger()
+                .multiply(BigDecimal.ONE.add(
+                        takeProfitPct.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)))
+                .setScale(3, RoundingMode.HALF_UP);
+
+        BigDecimal sl = s.stop();
+
+        return new Plan(qty, tp, sl);
+    }
+}

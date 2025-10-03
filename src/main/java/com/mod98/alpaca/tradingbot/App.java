@@ -4,10 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class AlpacaTradingBotApplication {
-
+public class App {
 	public static void main(String[] args) {
-		SpringApplication.run(AlpacaTradingBotApplication.class, args);
-		System.out.println("Test Add GitHub");
+		SpringApplication.run(App.class, args);
 	}
 }

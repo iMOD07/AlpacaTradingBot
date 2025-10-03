@@ -1,36 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+
+	<!-- استخدم Parent لمزامنة الإصدارات تلقائيًا -->
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.6</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
-	<groupId>com.mod98.alpaca</groupId>
+
+	<groupId>com.alpaca</groupId>
 	<artifactId>tradingbot</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.0</version>
 	<name>AlpacaTradingBot</name>
 	<description>Enterprise-grade Spring Boot application for automated stock trading using Alpaca API.</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
 	<properties>
+		<!-- طابق بيئتك الحالية -->
 		<java.version>17</java.version>
 	</properties>
 
-	<!-- TDLight -->
+	<!-- مستودع TDLight -->
 	<repositories>
 		<repository>
 			<id>mchv</id>
@@ -39,13 +32,12 @@
 		</repository>
 	</repositories>
 
-	<!-- BOM: Do not copy the version for tdlight libraries down -->
+	<!-- TDLight BOM: لا تحدد إصدارات tdlight-java/tdlight-natives تحت -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<groupId>it.tdlight</groupId>
 				<artifactId>tdlight-java-bom</artifactId>
-				<!-- Use the latest stable version currently. -->
 				<version>3.4.4+td.1.8.52</version>
 				<type>pom</type>
 				<scope>import</scope>
@@ -53,80 +45,89 @@
 		</dependencies>
 	</dependencyManagement>
 
-
 	<dependencies>
-
-
+		<!-- Spring Boot الأساسي (يتضمن Logback الافتراضي) -->
 		<dependency>
-			<groupId>it.tdlight</groupId>
-			<artifactId>tdlight-java</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 
-		<!-- Natives (for Mac Intel) -->
-		<dependency>
-			<groupId>it.tdlight</groupId>
-			<artifactId>tdlight-natives</artifactId>
-			<classifier>macos_amd64</classifier>
-		</dependency>
-
-		<!--log-->
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>2.0.16</version>
-			<scope>runtime</scope>
-		</dependency>
-
-
+		<!-- Actuator للمراقبة -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-
+		<!-- WebFlux (للـ reactive والاتصال بـ Alpaca/الخ) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
+		<!-- JPA لو عندك كيانات/جدوال داخلية -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Validation للـ DTOs -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- PostgreSQL Driver -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- TDLight Java -->
+		<dependency>
+			<groupId>it.tdlight</groupId>
+			<artifactId>tdlight-java</artifactId>
+		</dependency>
+
+		<!-- TDLight Natives (Mac Intel) -->
+		<dependency>
+			<groupId>it.tdlight</groupId>
+			<artifactId>tdlight-natives</artifactId>
+			<classifier>macos_amd64</classifier>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Lombok (اختياري) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
 
+		<!-- اختبارات -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/io.github.cdimascio/dotenv-java -->
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.2.0</version>
+		</dependency>
 
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- Lombok annotation processing (اختياري) -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -139,19 +140,12 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+
+			<!-- Spring Boot -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

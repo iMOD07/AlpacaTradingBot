@@ -48,7 +48,7 @@
     <logger name="com.mod98.alpaca.tradingbot.telegram" level="DEBUG" additivity="false">
         <appender-ref ref="TELEGRAM"/>
     </logger>
-    <logger name="com.mod98.alpaca.tradingbot.service" level="DEBUG" additivity="false">
+    <logger name="com.mod98.alpaca.tradingbot.parsing" level="DEBUG" additivity="false">
         <appender-ref ref="TRADE"/>
     </logger>
     <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
