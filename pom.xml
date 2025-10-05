@@ -97,13 +97,6 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Lombok (اختياري) -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-
 		<!-- اختبارات -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -122,6 +115,21 @@
 			<artifactId>dotenv-java</artifactId>
 			<version>3.2.0</version>
 		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.42</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/com.openai/openai-java -->
+		<dependency>
+			<groupId>com.openai</groupId>
+			<artifactId>openai-java</artifactId>
+			<version>4.1.0</version>
+		</dependency>
+
 
 	</dependencies>
 
