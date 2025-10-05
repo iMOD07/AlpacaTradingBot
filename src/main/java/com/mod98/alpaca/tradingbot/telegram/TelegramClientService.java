@@ -2,9 +2,10 @@ package com.mod98.alpaca.tradingbot.telegram;
 
 import com.mod98.alpaca.tradingbot.config.TelegramProperties;
 import com.mod98.alpaca.tradingbot.logic.TradeLogic;
+import com.mod98.alpaca.tradingbot.parsing.AiSignalParser;
 import com.mod98.alpaca.tradingbot.parsing.SignalParser;
-import com.mod98.alpaca.tradingbot.parsing.TradeSignal;
 
+import com.mod98.alpaca.tradingbot.parsing.TradeSignal;
 import it.tdlight.client.APIToken;
 import it.tdlight.client.AuthenticationSupplier;
 import it.tdlight.client.SimpleTelegramClient;
@@ -24,6 +25,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 
 @Service
@@ -32,18 +34,46 @@ public class TelegramClientService {
     private static final Logger log = LoggerFactory.getLogger(TelegramClientService.class);
 
     private final TelegramProperties props;
+    private final TradeLogic logic;
+    private final boolean regexEnabled;
+    private final boolean aiEnabled;
+    private AiSignalParser aiParser;
 
     private SimpleTelegramClientFactory clientFactory;
     private SimpleTelegramClient client;
 
-    private final TradeLogic logic;
-
     public TelegramClientService(TelegramProperties props) {
         this.props = props;
+
+        // Trading preferences
         this.logic = new TradeLogic(
                 new BigDecimal(System.getProperty("trade.fixed-budget", "200")),
                 new BigDecimal(System.getProperty("trade.tp.percent", "5"))
         );
+
+        // Read toggles from application.properties or environment
+        this.regexEnabled = Boolean.parseBoolean(System.getProperty(
+                "parser.regex.enabled",
+                System.getenv().getOrDefault("PARSER_REGEX_ENABLED", "true")
+        ));
+
+        this.aiEnabled = Boolean.parseBoolean(System.getProperty(
+                "parser.ai.enabled",
+                System.getenv().getOrDefault("PARSER_AI_ENABLED", "false")
+        ));
+
+        if (aiEnabled) {
+            String apiKey = System.getenv().getOrDefault("OPENAI_API_KEY",
+                    System.getProperty("openai.api.key", ""));
+            if (apiKey.isBlank()) {
+                log.warn("AI enabled but missing OPENAI_API_KEY → disabling fallback.");
+            } else {
+                this.aiParser = new AiSignalParser(apiKey);
+                log.info("🤖 AI Parser enabled.");
+            }
+        }
+
+        log.info("Parser config → Regex={}, AI={}", regexEnabled, aiEnabled);
     }
 
     @PostConstruct
@@ -123,15 +153,42 @@ public class TelegramClientService {
             String body = text.text.text;
             log.info("Incoming message [{}]:\n{}", chatId, body);
 
-            SignalParser.parse(body).ifPresentOrElse(signal -> {
-                var plan = logic.buildPlan(signal);
-                log.info("Parsed signal: symbol={}, trigger={}, SL={}, targets={}",
-                        signal.symbol(), signal.trigger(), signal.stop(), signal.targets());
+
+
+            // 1 First try via Regex
+
+            Optional<TradeSignal> parsed = SignalParser.parse(body);
+            if (parsed.isPresent()) {
+                TradeSignal s = parsed.get();
+                var plan = logic.buildPlan(s);
+                log.info("✅ Parsed via REGEX: symbol={}, trigger={}, SL={}, targets={}",
+                        s.symbol(), s.trigger(), s.stop(), s.targets());
                 log.info("Plan: qty={}, TP={} (+{}%), SL={}",
                         plan.qty(), plan.tp(),
                         System.getProperty("trade.tp.percent", "5"),
                         plan.sl());
-            }, () -> log.debug("Not a trade signal (parser miss)."));
+                return;
+            }
+
+            // 2 - If regex fails and AI is enabled try AI
+            if (aiEnabled && aiParser != null) {
+                log.warn("⚠️ Regex parser failed, sending to OpenAI...");
+                Optional<TradeSignal> aiParsed = aiParser.parse(body);
+                if (aiParsed.isPresent()) {
+                    TradeSignal s = aiParsed.get();
+                    var plan = logic.buildPlan(s);
+                    log.info("🤖 Parsed via AI (OpenAI): symbol={}, trigger={}, SL={}, targets={}",
+                            s.symbol(), s.trigger(), s.stop(), s.targets());
+                    log.info("Plan: qty={}, TP={} (+{}%), SL={}",
+                            plan.qty(), plan.tp(),
+                            System.getProperty("trade.tp.percent", "5"),
+                            plan.sl());
+                } else {
+                    log.error("❌ AI parser also failed, skipping this message.");
+                }
+            } else {
+                log.debug("Not a trade signal (parser miss) and AI disabled.");
+            }
         }
     }
 
