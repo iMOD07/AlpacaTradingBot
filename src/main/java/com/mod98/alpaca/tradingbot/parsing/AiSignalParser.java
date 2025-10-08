@@ -46,7 +46,7 @@ public class AiSignalParser {
             ChatCompletionCreateParams params = ChatCompletionCreateParams.builder()
                     .addSystemMessage("أنت محلل توصيات أسهم محترف.")
                     .addUserMessage(prompt)
-                    .model(ChatModel.GPT_5) // أو GPT_3_5_TURBO لو عندك نسخة أقدم
+                    .model(ChatModel.GPT_4)
                     .temperature(0.1)
                     .maxCompletionTokens(200L)
                     .build();

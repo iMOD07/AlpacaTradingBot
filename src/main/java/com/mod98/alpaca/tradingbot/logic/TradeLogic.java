@@ -7,8 +7,8 @@ import java.math.RoundingMode;
 
 public class TradeLogic {
 
-    private final BigDecimal budgetUSD; // 200
-    private final BigDecimal takeProfitPct; // 5
+    private final BigDecimal budgetUSD;
+    private final BigDecimal takeProfitPct;
 
     public TradeLogic(BigDecimal budgetUSD, BigDecimal takeProfitPct) {
         this.budgetUSD = budgetUSD;
