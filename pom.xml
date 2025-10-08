@@ -4,7 +4,6 @@
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<!-- استخدم Parent لمزامنة الإصدارات تلقائيًا -->
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
@@ -19,11 +18,10 @@
 	<description>Enterprise-grade Spring Boot application for automated stock trading using Alpaca API.</description>
 
 	<properties>
-		<!-- طابق بيئتك الحالية -->
 		<java.version>17</java.version>
 	</properties>
 
-	<!-- مستودع TDLight -->
+	<!-- TDLight -->
 	<repositories>
 		<repository>
 			<id>mchv</id>
@@ -32,7 +30,7 @@
 		</repository>
 	</repositories>
 
-	<!-- TDLight BOM: لا تحدد إصدارات tdlight-java/tdlight-natives تحت -->
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -46,31 +44,31 @@
 	</dependencyManagement>
 
 	<dependencies>
-		<!-- Spring Boot الأساسي (يتضمن Logback الافتراضي) -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 
-		<!-- Actuator للمراقبة -->
+		<!-- Actuator -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- WebFlux (للـ reactive والاتصال بـ Alpaca/الخ) -->
+		<!-- WebFlux -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
-		<!-- JPA لو عندك كيانات/جدوال داخلية -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
-		<!-- Validation للـ DTOs -->
+		<!-- Validation DTOs -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
@@ -89,15 +87,15 @@
 			<artifactId>tdlight-java</artifactId>
 		</dependency>
 
-		<!-- TDLight Natives (Mac Intel) -->
+		<!-- TDLight Natives (Mac M1) -->
 		<dependency>
 			<groupId>it.tdlight</groupId>
 			<artifactId>tdlight-natives</artifactId>
-			<classifier>macos_amd64</classifier>
+			<classifier>macos_arm64</classifier>
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- اختبارات -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
@@ -120,7 +118,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.42</version>
+			<version>1.18.40</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.openai/openai-java -->
@@ -135,7 +133,7 @@
 
 	<build>
 		<plugins>
-			<!-- Lombok annotation processing (اختياري) -->
+			<!-- Lombok annotation processing -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

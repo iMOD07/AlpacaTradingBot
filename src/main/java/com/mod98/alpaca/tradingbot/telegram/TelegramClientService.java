@@ -59,7 +59,7 @@ public class TelegramClientService {
 
         this.aiEnabled = Boolean.parseBoolean(System.getProperty(
                 "parser.ai.enabled",
-                System.getenv().getOrDefault("PARSER_AI_ENABLED", "false")
+                System.getenv().getOrDefault("PARSER_AI_ENABLED", "true")
         ));
 
         if (aiEnabled) {
@@ -143,21 +143,29 @@ public class TelegramClientService {
         TdApi.Message msg = update.message;
         long chatId = msg.chatId;
 
-        // Filter by the desired channel
+        // Channel filtering
         Long wanted = (props.getChannel() != null) ? props.getChannel().getId() : null;
+        if (wanted != null) wanted = -Math.abs(wanted);
         if (wanted != null && wanted != 0 && !Objects.equals(chatId, wanted)) {
             return;
         }
 
-        if (msg.content instanceof TdApi.MessageText text) {
-            String body = text.text.text;
-            log.info("Incoming message [{}]:\n{}", chatId, body);
+        if (!(msg.content instanceof TdApi.MessageText text)) {
+            return;
+        }
 
+        String body = text.text.text;
+        if (body == null || body.isBlank()) {
+            log.debug("Empty text body — skipping.");
+            return;
+        }
 
+        log.info("Incoming message [{}]:\n{}", chatId, body);
 
-            // 1 First try via Regex
-
-            Optional<TradeSignal> parsed = SignalParser.parse(body);
+        // -------- First (Regex) if it is activate --------
+        Optional<TradeSignal> parsed = Optional.empty();
+        if (regexEnabled) {
+            parsed = SignalParser.parse(body);
             if (parsed.isPresent()) {
                 TradeSignal s = parsed.get();
                 var plan = logic.buildPlan(s);
@@ -168,29 +176,33 @@ public class TelegramClientService {
                         System.getProperty("trade.tp.percent", "5"),
                         plan.sl());
                 return;
-            }
-
-            // 2 - If regex fails and AI is enabled try AI
-            if (aiEnabled && aiParser != null) {
-                log.warn("⚠️ Regex parser failed, sending to OpenAI...");
-                Optional<TradeSignal> aiParsed = aiParser.parse(body);
-                if (aiParsed.isPresent()) {
-                    TradeSignal s = aiParsed.get();
-                    var plan = logic.buildPlan(s);
-                    log.info("🤖 Parsed via AI (OpenAI): symbol={}, trigger={}, SL={}, targets={}",
-                            s.symbol(), s.trigger(), s.stop(), s.targets());
-                    log.info("Plan: qty={}, TP={} (+{}%), SL={}",
-                            plan.qty(), plan.tp(),
-                            System.getProperty("trade.tp.percent", "5"),
-                            plan.sl());
-                } else {
-                    log.error("❌ AI parser also failed, skipping this message.");
-                }
             } else {
-                log.debug("Not a trade signal (parser miss) and AI disabled.");
+                log.warn("⚠️ Regex parser failed for this message.");
             }
+        } else {
+            log.debug("Regex parser disabled by config.");
+        }
+
+        // -------- AI if enabled or Regex Error --------
+        if (aiEnabled && aiParser != null) {
+            Optional<TradeSignal> aiParsed = aiParser.parse(body);
+            if (aiParsed.isPresent()) {
+                TradeSignal s = aiParsed.get();
+                var plan = logic.buildPlan(s);
+                log.info("🤖 Parsed via AI: symbol={}, trigger={}, SL={}, targets={}",
+                        s.symbol(), s.trigger(), s.stop(), s.targets());
+                log.info("Plan: qty={}, TP={} (+{}%), SL={}",
+                        plan.qty(), plan.tp(),
+                        System.getProperty("trade.tp.percent", "5"),
+                        plan.sl());
+            } else {
+                log.error("❌ AI parser failed as well — skipping this message.");
+            }
+        } else {
+            log.debug("AI parser disabled or not initialized.");
         }
     }
+
 
     @PreDestroy
     public void stop() {
