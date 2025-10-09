@@ -1,4 +1,4 @@
-package com.mod98.alpaca.tradingbot.parsing;
+package com.mod98.alpaca.tradingbot.Parsing;
 
 import java.math.BigDecimal;
 import java.util.List;

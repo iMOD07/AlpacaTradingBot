@@ -1,6 +1,6 @@
-package com.mod98.alpaca.tradingbot.logic;
+package com.mod98.alpaca.tradingbot.Service;
 
-import com.mod98.alpaca.tradingbot.parsing.TradeSignal;
+import com.mod98.alpaca.tradingbot.Parsing.TradeSignal;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

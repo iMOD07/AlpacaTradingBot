@@ -1,4 +1,4 @@
-package com.mod98.alpaca.tradingbot.config;
+package com.mod98.alpaca.tradingbot.Config;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

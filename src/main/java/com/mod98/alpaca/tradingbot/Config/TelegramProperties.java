@@ -1,4 +1,4 @@
-package com.mod98.alpaca.tradingbot.config;
+package com.mod98.alpaca.tradingbot.Config;
 
 import lombok.Getter;
 import lombok.NonNull;

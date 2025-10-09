@@ -1,4 +1,4 @@
-package com.mod98.alpaca.tradingbot.parsing;
+package com.mod98.alpaca.tradingbot.Parsing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.client.OpenAIClient;
