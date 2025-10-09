@@ -1,12 +1,10 @@
 package com.mod98.alpaca.tradingbot.Service;
 
 import com.mod98.alpaca.tradingbot.Config.TelegramProperties;
-import com.mod98.alpaca.tradingbot.Config.TradeProperties;
 import com.mod98.alpaca.tradingbot.Model.AppSettings;
 import com.mod98.alpaca.tradingbot.Parsing.AiSignalParser;
 import com.mod98.alpaca.tradingbot.Parsing.SignalParser;
 import com.mod98.alpaca.tradingbot.Parsing.TradeSignal;
-import com.mod98.alpaca.tradingbot.Service.SettingsService;
 import it.tdlight.client.APIToken;
 import it.tdlight.client.AuthenticationSupplier;
 import it.tdlight.client.SimpleTelegramClient;
@@ -18,9 +16,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import java.math.BigDecimal;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;

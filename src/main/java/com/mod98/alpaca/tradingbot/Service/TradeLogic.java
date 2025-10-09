@@ -26,7 +26,7 @@ public class TradeLogic {
         BigDecimal tp = s.trigger()
                 .multiply(BigDecimal.ONE.add(
                         takeProfitPct.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)))
-                .setScale(3, RoundingMode.HALF_UP);
+                .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal sl = s.stop();
 

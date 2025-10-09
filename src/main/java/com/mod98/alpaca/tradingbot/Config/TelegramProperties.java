@@ -23,8 +23,6 @@ public class TelegramProperties {
     @NonNull
     private String phone;
 
-    private String sessionDir = "./tdlight-session";
-
     //To read from application.properties
     @NonNull
     private ChannelTelegram channelTelegram = new ChannelTelegram();
