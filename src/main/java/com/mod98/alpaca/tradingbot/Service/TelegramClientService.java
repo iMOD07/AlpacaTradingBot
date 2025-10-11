@@ -20,14 +20,18 @@ import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class TelegramClientService {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramClientService.class);
+
+    private final Map<Long, TradeSignal> activeSignals = new ConcurrentHashMap<>();
 
     private final TelegramProperties props;
     private final SettingsService settings;
@@ -37,7 +41,7 @@ public class TelegramClientService {
 
     private AiSignalParser aiParser;
     private boolean aiAvailable = false;
-    private TradeLogic logic;
+    //private TradeLogic logic;
 
     public TelegramClientService(TelegramProperties props, SettingsService settings) {
         this.props = props;
@@ -84,6 +88,9 @@ public class TelegramClientService {
 
             builder.addUpdateHandler(TdApi.UpdateAuthorizationState.class, this::onAuthUpdate);
             builder.addUpdateHandler(TdApi.UpdateNewMessage.class, this::onNewMessage);
+            builder.addUpdateHandler(TdApi.UpdateMessageEdited.class, this::onMessageEdited);
+            builder.addUpdateHandler(TdApi.UpdateMessageContent.class, this::onMessageContent);
+            builder.addUpdateHandler(TdApi.UpdateDeleteMessages.class, this::onDeleteMessages);
 
             AuthenticationSupplier<?> auth = AuthenticationSupplier.user(props.getPhone());
             client = builder.build(auth);
@@ -125,9 +132,11 @@ public class TelegramClientService {
 
         // 1 Read Last Settings from Database
         AppSettings appSettings = settings.get();
-
         // 2 Filter Channel Telegram from DB
         long chatId = update.message.chatId;
+        // 3 add ID For message
+        long msgId = update.message.id;
+
         if (appSettings.getChannelId() == null || !Objects.equals(chatId, appSettings.getChannelId())){
             return;
         }
@@ -136,7 +145,7 @@ public class TelegramClientService {
         if (!(update.message.content instanceof TdApi.MessageText text)) return;
         String body = text.text.text;
         if (body == null || body.isBlank()) return;
-        log.info("Incoming message [{}]:\n{}", chatId, body);
+        log.info("Incoming message [chatId={}, msgId={}]:\n{}", chatId, msgId, body);
 
         // 4 Build TradeLogic from existing DB values
         TradeLogic logic = new TradeLogic(appSettings.getFixedBudget(), appSettings.getTpPercent());
@@ -146,6 +155,7 @@ public class TelegramClientService {
             Optional<TradeSignal> parsed = SignalParser.parse(body);
             if (parsed.isPresent()){
                 TradeSignal sig = parsed.get();
+                activeSignals.put(msgId, sig);
                 var plan = logic.buildPlan(sig);
                 log.info("✅ REGEX: symbol={}, trigger={}, SL={}, targets={}",
                         sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
@@ -162,6 +172,7 @@ public class TelegramClientService {
             Optional<TradeSignal> aiParsed = aiParser.parse(body);
             if (aiParsed.isPresent()) {
                 TradeSignal sig = aiParsed.get();
+                activeSignals.put(msgId, sig);
                 var plan = logic.buildPlan(sig);
                 log.info("🤖 AI: symbol={}, trigger={}, SL={}, targets={}",
                         sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
@@ -169,6 +180,72 @@ public class TelegramClientService {
                         plan.qty(), plan.tp(), appSettings.getTpPercent(), plan.sl());
             } else {
                 log.error("AI parser failed as well — skipping this message.");
+            }
+        }
+    }
+
+private void onMessageEdited(TdApi.UpdateMessageEdited upd) {
+        AppSettings app = settings.get();
+        if (!Objects.equals(upd.chatId, app.getChannelId()))
+            return;
+        log.info("Message edited: chatId={}, messageId={}, editDate={}",
+                upd.chatId, upd.messageId, upd.editDate);
+    }
+
+    private void onMessageContent(TdApi.UpdateMessageContent upd) {
+        AppSettings app = settings.get();
+        if (!Objects.equals(upd.chatId, app.getChannelId())) return;
+
+        long msgId = upd.messageId;
+        if (!(upd.newContent instanceof TdApi.MessageText txt)) return;
+        String body = txt.text.text;
+        if (body == null || body.isBlank()) return;
+        log.info("Edited content received [chatId={}, msgId={}]:\n{}", upd.chatId, upd.messageId, body);
+
+        TradeLogic logic = new TradeLogic(app.getFixedBudget(), app.getTpPercent());
+
+        if (activeSignals.containsKey(msgId)) {
+            activeSignals.remove(msgId);
+            log.info("❌ Canceled old plan for messageId={}", msgId);
+        }
+
+        Optional<TradeSignal> parsed = SignalParser.parse(body);
+        if (parsed.isPresent()) {
+            TradeSignal sig = parsed.get();
+            activeSignals.put(msgId, sig);
+            var plan = logic.buildPlan(sig);
+            log.info("✅ REGEX(EDIT): symbol={}, trigger={}, SL={}, targets={}",
+                    sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
+            log.info("Plan: qty={}, TP={} (+{}%), SL={}",
+                    plan.qty(), plan.tp(), app.getTpPercent(), plan.sl());
+            return;
+        } else {
+            log.warn("Regex parser failed on edited message.");
+        }
+        if (app.isAiEnabled() && aiAvailable && aiParser != null) {
+            Optional<TradeSignal> aiParsed = aiParser.parse(body);
+            if (aiParsed.isPresent()) {
+                TradeSignal sig = aiParsed.get();
+                activeSignals.put(msgId, sig);
+                var plan = logic.buildPlan(sig);
+                log.info("🤖 AI(EDIT): symbol={}, trigger={}, SL={}, targets={}",
+                        sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
+                log.info("Plan: qty={}, TP={} (+{}%), SL={}",
+                        plan.qty(), plan.tp(), app.getTpPercent(), plan.sl());
+            } else {
+                log.error("AI parser failed on edited message.");
+            }
+        }
+    }
+
+    private void onDeleteMessages(TdApi.UpdateDeleteMessages upd) {
+        AppSettings app = settings.get();
+        if (!Objects.equals(upd.chatId, app.getChannelId())) return;
+        if (upd.isPermanent) {
+            for (long mid : upd.messageIds) {
+                if (activeSignals.remove(mid) != null) {
+                    log.info("🗑️ Removed plan due to message deletion: {}", mid);
+                }
             }
         }
     }
