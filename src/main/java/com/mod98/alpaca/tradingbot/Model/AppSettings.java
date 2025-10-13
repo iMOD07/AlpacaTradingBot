@@ -47,6 +47,21 @@ public class AppSettings {
     @Column(name = "session_dir", nullable = false, length = 255)
     private String sessionDir;
 
+    @Column(name = "alpaca_paper", nullable = false)
+    private boolean alpacaPaper = true;
+
+    @Column(name = "alpaca_extended_hours", nullable = false)
+    private boolean alpacaExtendedHours = true;
+
+    @Column(name = "alpaca_max_slippage_bps", nullable = false)
+    private Integer alpacaMaxSlippageBps = 30; // 30bps = 0.30%
+
+    @Column(name = "alpaca_spread_guard_bps", nullable = false)
+    private Integer alpacaSpreadGuardBps = 50; // 50bps = 0.50%
+
+    @Column(name = "alpaca_min_volume")
+    private Long alpacaMinVolume = 100000L;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 

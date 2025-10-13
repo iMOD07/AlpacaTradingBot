@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,51 +30,53 @@ public class TelegramClientService {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramClientService.class);
 
-    private final Map<Long, TradeSignal> activeSignals = new ConcurrentHashMap<>();
+    private final Map<String, TradeSignal> activeSignals = new ConcurrentHashMap<>();
+    private static String key(long chatId, long msgId) { return chatId + "|" + msgId; }
 
     private final TelegramProperties props;
     private final SettingsService settings;
+    private final TradeExecutorService executor;
 
     private SimpleTelegramClientFactory clientFactory;
     private SimpleTelegramClient client;
 
+    private final TradeAuditService audit;
+
     private AiSignalParser aiParser;
     private boolean aiAvailable = false;
-    //private TradeLogic logic;
 
-    public TelegramClientService(TelegramProperties props, SettingsService settings) {
+    public TelegramClientService(TelegramProperties props, SettingsService settings, TradeExecutorService executor, TradeAuditService audit) {
         this.props = props;
         this.settings = settings;
+        this.executor = executor;
+        this.audit = audit;
     }
 
     @PostConstruct
     public void initAndStart() {
-        // Read Settings from DB
         AppSettings appSettings = settings.get();
-        if (appSettings.getChannelId() == null) {
-            throw new IllegalStateException("app_settings.channelId is missing in DB!");
-        }
 
-        // AI Parser
         if (appSettings.isAiEnabled()) {
             String apiKey = System.getenv().getOrDefault("OPENAI_API_KEY",
                     System.getProperty("openai.api.key", ""));
             if (apiKey == null || apiKey.isBlank()) {
-                log.warn("AI enabled but missing OPENAI_API_KEY, then disabling AI parser.");
+                log.warn("AI enabled but missing OPENAI_API_KEY, disabling AI parser.");
                 aiAvailable = false;
             } else {
                 this.aiParser = new AiSignalParser(apiKey);
                 aiAvailable = true;
-                log.info("🤖 AI Parser enabled 🤖.");
+                log.info("🤖 AI Parser enabled.");
             }
         } else {
             aiAvailable = false;
         }
-        log.info("Config from DB → Regex={}, AI={}, Budget=${}, TP%={}, channelId={}, sessionDir={}",
-                appSettings.isRegexEnabled(), appSettings.isAiEnabled(), appSettings.getFixedBudget(), appSettings.getTpPercent(),
-                appSettings.getChannelId(), appSettings.getSessionDir());
 
-        // ===== TDLight start =====
+        log.info("Config from DB → Regex={}, AI={}, Budget=${}, TP%={}, sessionDir={}, extendedHours={}",
+                appSettings.isRegexEnabled(), appSettings.isAiEnabled(),
+                appSettings.getFixedBudget(), appSettings.getTpPercent(),
+                appSettings.getSessionDir(), appSettings.isAlpacaExtendedHours());
+
+        // ===== TDLight =====
         try {
             APIToken apiToken = new APIToken(props.getApiId(), props.getApiHash());
             TDLibSettings td = TDLibSettings.create(apiToken);
@@ -95,7 +96,7 @@ public class TelegramClientService {
             AuthenticationSupplier<?> auth = AuthenticationSupplier.user(props.getPhone());
             client = builder.build(auth);
 
-            log.info("TDLight client is ready. Watching chatId={}", appSettings.getChannelId());
+            log.info("TDLight client is ready. Listening to ALL text messages (including forwarded).");
         } catch (Throwable t) {
             log.error("Failed to start Telegram client", t);
             throw new RuntimeException(t);
@@ -129,127 +130,149 @@ public class TelegramClientService {
     }
 
     private void onNewMessage(TdApi.UpdateNewMessage update) {
-
-        // 1 Read Last Settings from Database
-        AppSettings appSettings = settings.get();
-        // 2 Filter Channel Telegram from DB
         long chatId = update.message.chatId;
-        // 3 add ID For message
-        long msgId = update.message.id;
+        long msgId  = update.message.id;
 
-        if (appSettings.getChannelId() == null || !Objects.equals(chatId, appSettings.getChannelId())){
-            return;
-        }
-
-        // 3 Text Only
         if (!(update.message.content instanceof TdApi.MessageText text)) return;
         String body = text.text.text;
         if (body == null || body.isBlank()) return;
+
+        if (update.message.forwardInfo != null) {
+            log.info("Forwarded message (chatId={}, msgId={})", chatId, msgId);
+        }
+
         log.info("Incoming message [chatId={}, msgId={}]:\n{}", chatId, msgId, body);
 
-        // 4 Build TradeLogic from existing DB values
+        AppSettings appSettings = settings.get();
         TradeLogic logic = new TradeLogic(appSettings.getFixedBudget(), appSettings.getTpPercent());
 
-        // 5 Regex if Activated
+        // 1 First Regex
         if (appSettings.isRegexEnabled()) {
             Optional<TradeSignal> parsed = SignalParser.parse(body);
-            if (parsed.isPresent()){
+            if (parsed.isPresent()) {
                 TradeSignal sig = parsed.get();
-                activeSignals.put(msgId, sig);
+                activeSignals.put(key(chatId, msgId), sig);
                 var plan = logic.buildPlan(sig);
                 log.info("✅ REGEX: symbol={}, trigger={}, SL={}, targets={}",
                         sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
                 log.info("Plan: qty={}, TP={} (+{}%), SL={}",
                         plan.qty(), plan.tp(), appSettings.getTpPercent(), plan.sl());
+
+                executor.executeSignal(
+                        sig, plan.qty(), appSettings.getTpPercent(), appSettings.isAlpacaExtendedHours()
+                );
                 return;
             } else {
                 log.warn("Regex parser failed for this message.");
             }
         }
 
-        // 6 AI if Activated
+        // 2 - Sec AI
         if (appSettings.isAiEnabled() && aiAvailable && aiParser != null) {
             Optional<TradeSignal> aiParsed = aiParser.parse(body);
             if (aiParsed.isPresent()) {
                 TradeSignal sig = aiParsed.get();
-                activeSignals.put(msgId, sig);
+                activeSignals.put(key(chatId, msgId), sig);
                 var plan = logic.buildPlan(sig);
                 log.info("🤖 AI: symbol={}, trigger={}, SL={}, targets={}",
                         sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
                 log.info("Plan: qty={}, TP={} (+{}%), SL={}",
                         plan.qty(), plan.tp(), appSettings.getTpPercent(), plan.sl());
+
+                executor.executeSignal(
+                        sig, plan.qty(), appSettings.getTpPercent(), appSettings.isAlpacaExtendedHours()
+                );
+                return;
             } else {
                 log.error("AI parser failed as well — skipping this message.");
             }
         }
+
+        // If the analyses are wrong, save in DB.
+        String shortBody = body.length() > 180 ? body.substring(0, 180) + "..." : body;
+        audit.record(null, "PARSE_FAILED", "body=" + shortBody);
     }
 
-private void onMessageEdited(TdApi.UpdateMessageEdited upd) {
-        AppSettings app = settings.get();
-        if (!Objects.equals(upd.chatId, app.getChannelId()))
-            return;
+
+    private void onMessageEdited(TdApi.UpdateMessageEdited upd) {
         log.info("Message edited: chatId={}, messageId={}, editDate={}",
                 upd.chatId, upd.messageId, upd.editDate);
     }
 
     private void onMessageContent(TdApi.UpdateMessageContent upd) {
-        AppSettings app = settings.get();
-        if (!Objects.equals(upd.chatId, app.getChannelId())) return;
+        long chatId = upd.chatId;
+        long msgId  = upd.messageId;
 
-        long msgId = upd.messageId;
         if (!(upd.newContent instanceof TdApi.MessageText txt)) return;
         String body = txt.text.text;
         if (body == null || body.isBlank()) return;
-        log.info("Edited content received [chatId={}, msgId={}]:\n{}", upd.chatId, upd.messageId, body);
 
+        log.info("Edited content received [chatId={}, msgId={}]:\n{}", chatId, msgId, body);
+
+        AppSettings app = settings.get();
         TradeLogic logic = new TradeLogic(app.getFixedBudget(), app.getTpPercent());
 
-        if (activeSignals.containsKey(msgId)) {
-            activeSignals.remove(msgId);
-            log.info("❌ Canceled old plan for messageId={}", msgId);
+        String k = key(chatId, msgId);
+        if (activeSignals.containsKey(k)) {
+            activeSignals.remove(k);
+            log.info("❌ Canceled old plan for message {}", k);
         }
 
+        // 1- Regex
         Optional<TradeSignal> parsed = SignalParser.parse(body);
         if (parsed.isPresent()) {
             TradeSignal sig = parsed.get();
-            activeSignals.put(msgId, sig);
+            activeSignals.put(k, sig);
             var plan = logic.buildPlan(sig);
             log.info("✅ REGEX(EDIT): symbol={}, trigger={}, SL={}, targets={}",
                     sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
             log.info("Plan: qty={}, TP={} (+{}%), SL={}",
                     plan.qty(), plan.tp(), app.getTpPercent(), plan.sl());
+
+            executor.executeSignal(
+                    sig, plan.qty(), app.getTpPercent(), app.isAlpacaExtendedHours()
+            );
             return;
         } else {
             log.warn("Regex parser failed on edited message.");
         }
+
+        // 2 - AI
         if (app.isAiEnabled() && aiAvailable && aiParser != null) {
             Optional<TradeSignal> aiParsed = aiParser.parse(body);
             if (aiParsed.isPresent()) {
                 TradeSignal sig = aiParsed.get();
-                activeSignals.put(msgId, sig);
+                activeSignals.put(k, sig);
                 var plan = logic.buildPlan(sig);
                 log.info("🤖 AI(EDIT): symbol={}, trigger={}, SL={}, targets={}",
                         sig.symbol(), sig.trigger(), sig.stop(), sig.targets());
                 log.info("Plan: qty={}, TP={} (+{}%), SL={}",
                         plan.qty(), plan.tp(), app.getTpPercent(), plan.sl());
+
+                executor.executeSignal(
+                        sig, plan.qty(), app.getTpPercent(), app.isAlpacaExtendedHours()
+                );
+                return;
             } else {
                 log.error("AI parser failed on edited message.");
             }
         }
+
+        String shortBody = body.length() > 180 ? body.substring(0, 180) + "..." : body;
+        audit.record(null, "PARSE_FAILED_EDIT", "body=" + shortBody);
     }
 
+
     private void onDeleteMessages(TdApi.UpdateDeleteMessages upd) {
-        AppSettings app = settings.get();
-        if (!Objects.equals(upd.chatId, app.getChannelId())) return;
         if (upd.isPermanent) {
             for (long mid : upd.messageIds) {
-                if (activeSignals.remove(mid) != null) {
-                    log.info("🗑️ Removed plan due to message deletion: {}", mid);
+                String k = key(upd.chatId, mid);
+                if (activeSignals.remove(k) != null) {
+                    log.info("🗑️ Removed plan due to message deletion: {}", k);
                 }
             }
         }
     }
-
 
     @PreDestroy
     public void stop() {
