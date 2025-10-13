@@ -3,6 +3,8 @@ package com.mod98.alpaca.tradingbot.Service;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -14,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+@Service
 public class PriceWatcherService {
 
     private static final Logger log = LoggerFactory.getLogger(PriceWatcherService.class);
@@ -26,6 +29,7 @@ public class PriceWatcherService {
     private final Duration defaultPollInterval;
     private final Duration defaultTimeout;
 
+    @Autowired
     public PriceWatcherService(AlpacaClient alpaca) {
         this(alpaca, Duration.ofSeconds(1), Duration.ofMinutes(10));
     }
