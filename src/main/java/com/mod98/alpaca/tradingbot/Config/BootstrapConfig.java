@@ -26,7 +26,7 @@ public class BootstrapConfig {
                 s.setSessionDir("./tdlight-session");
                 s.setAlpacaExtendedHours(true);
                 s.setUpdatedAt(Instant.now());
-                // ضع channelId الافتراضي من application.properties إذا تبي:
+                //Set the default channelId from application.properties if you want:
                 // s.setChannelId(-1002915197770L);
                 repo.save(s);
             }

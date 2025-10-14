@@ -43,6 +43,9 @@ public class AppSettings {
     @Column(name = "channel_id", nullable = false)
     private Long channelId;
 
+    @Column(name = "allow_forwarded", nullable = false)
+    private boolean allowForwarded = true;
+
     @NotBlank
     @Column(name = "session_dir", nullable = false, length = 255)
     private String sessionDir;
