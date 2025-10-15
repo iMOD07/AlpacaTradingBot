@@ -2,6 +2,7 @@ package com.mod98.alpaca.tradingbot.Service;
 
 import com.mod98.alpaca.tradingbot.Model.TradeRecord;
 import jakarta.persistence.*;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import java.time.Instant;
 import java.util.Optional;
 import org.springframework.transaction.annotation.Transactional;
 
+@RequiredArgsConstructor
 @Service
 public class TradeRecordService {
 

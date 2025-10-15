@@ -3,6 +3,7 @@ package com.mod98.alpaca.tradingbot.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mod98.alpaca.tradingbot.Config.AlpacaProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 
+@RequiredArgsConstructor
 @Service
 public class AlpacaClient {
 

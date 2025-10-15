@@ -2,19 +2,17 @@ package com.mod98.alpaca.tradingbot.Service;
 
 import com.mod98.alpaca.tradingbot.Model.TradeEvent;
 import com.mod98.alpaca.tradingbot.Repository.TradeEventRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+@RequiredArgsConstructor
 @Service
 public class TradeAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(TradeAuditService.class);
     private final TradeEventRepository repo;
-
-    public TradeAuditService(TradeEventRepository repo) {
-        this.repo = repo;
-    }
 
     public TradeEvent record(String symbol, String eventType, String message) {
         return record(symbol, eventType, message, null, null);

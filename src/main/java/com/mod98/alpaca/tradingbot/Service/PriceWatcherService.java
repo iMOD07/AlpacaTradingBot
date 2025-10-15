@@ -1,6 +1,7 @@
 package com.mod98.alpaca.tradingbot.Service;
 
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+@RequiredArgsConstructor
 @Service
 public class PriceWatcherService {
 

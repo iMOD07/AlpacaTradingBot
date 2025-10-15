@@ -1,23 +1,19 @@
 package com.mod98.alpaca.tradingbot.Service;
 
 import com.mod98.alpaca.tradingbot.Parsing.TradeSignal;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 
+@RequiredArgsConstructor
 @Service
 public class TradeExecutorService {
 
     private final AlpacaClient alpaca;
     private final PriceWatcherService watcher;
     private final TradeAuditService audit;
-
-    public TradeExecutorService(AlpacaClient alpaca, PriceWatcherService watcher, TradeAuditService audit) {
-        this.alpaca = alpaca;
-        this.watcher = watcher;
-        this.audit = audit;
-    }
 
     public void executeSignal(TradeSignal sig, int qty, BigDecimal tpPercent, boolean extendedHours) {
         // 1-Arming record
@@ -30,7 +26,8 @@ public class TradeExecutorService {
                     try {
                         // Check the spread for example before entering.
                         var q = alpaca.getLastQuote(evt.symbol());
-                        BigDecimal ask = q.ask; BigDecimal bid = q.bid;
+                        BigDecimal ask = q.ask;
+                        BigDecimal bid = q.bid;
                         int spreadBps = bid != null && ask != null && ask.signum() > 0
                                 ? ask.subtract(bid).divide(ask, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(10000)).intValue()
                                 : 0;
