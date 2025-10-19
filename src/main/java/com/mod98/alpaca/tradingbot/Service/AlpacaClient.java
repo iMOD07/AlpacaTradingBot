@@ -3,7 +3,7 @@ package com.mod98.alpaca.tradingbot.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mod98.alpaca.tradingbot.Config.AlpacaProperties;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -21,7 +21,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 
-@RequiredArgsConstructor
 @Service
 public class AlpacaClient {
 
@@ -38,6 +37,7 @@ public class AlpacaClient {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public AlpacaClient(AlpacaProperties props) {
         this.keyId = props.getApiKeyId();
         this.secretKey = props.getApiSecretKey();
