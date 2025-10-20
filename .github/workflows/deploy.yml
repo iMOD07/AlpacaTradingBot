@@ -32,7 +32,9 @@ jobs:
       - name: Prepare artifact
         run: |
           set -e
-          ART=$(ls target/*-SNAPSHOT.jar 2>/dev/null || ls target/*.jar | head -n1)
+          echo "Listing target folder contents:"
+          ls -lah target
+          ART=$(find target -type f -name "*.jar" | head -n 1)
           echo "FOUND_JAR=$ART"
           cp "$ART" tradingbot.jar
           ls -lah tradingbot.jar
