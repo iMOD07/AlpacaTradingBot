@@ -60,11 +60,11 @@ jobs:
           TS=$(date +%Y%m%d%H%M%S)
           REMOTE_RELEASE_DIR="${TARGET_DIR}/releases/${TS}"
 
-          ssh "${SSH_USER}@${HOST}" "mkdir -p '${REMOTE_RELEASE_DIR}'"
+          ssh "${SSH_USER}@${HOST}" "mkdir -p \"$REMOTE_RELEASE_DIR\""
 
-          scp tradingbot.jar "${SSH_USER}@${HOST}:'${REMOTE_RELEASE_DIR}/tradingbot.jar'"
+          scp -o StrictHostKeyChecking=yes tradingbot.jar "${SSH_USER}@${HOST}:${REMOTE_RELEASE_DIR}/tradingbot.jar"
 
-          ssh "${SSH_USER}@${HOST}" "ln -sfn '${REMOTE_RELEASE_DIR}' '${TARGET_DIR}/current' && cd '${TARGET_DIR}/releases' && ls -1t | tail -n +6 | xargs -r -I {} rm -rf '{}'"
+          ssh "${SSH_USER}@${HOST}" "ln -sfn \"$REMOTE_RELEASE_DIR\" \"${TARGET_DIR}/current\" && cd \"${TARGET_DIR}/releases\" && ls -1t | tail -n +6 | xargs -r -I {} rm -rf \"{}\""
 
       - name: Restart & verify service
         run: |
