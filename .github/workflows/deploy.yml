@@ -49,17 +49,20 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Upload JAR to server
+        env:
+          HOST: ${{ secrets.HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
         run: |
-          set -e
+          set -euo pipefail
           TS=$(date +%Y%m%d%H%M%S)
-          REMOTE_RELEASE_DIR="${{ secrets.TARGET_DIR }}/releases/$TS"
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.HOST }}" "mkdir -p \"$REMOTE_RELEASE_DIR\""
-          scp tradingbot.jar "${{ secrets.SSH_USER }}@${{ secrets.HOST }}:$REMOTE_RELEASE_DIR/tradingbot.jar"
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.HOST }}" bash -lc '
-            ln -sfn "'"$REMOTE_RELEASE_DIR"'" "'"${{ secrets.TARGET_DIR }}"/current"' &&
-            cd "'"${{ secrets.TARGET_DIR }}"/releases"'" &&
-            ls -1t | tail -n +6 | xargs -r -I {} rm -rf "{}"
-          '
+          REMOTE_RELEASE_DIR="${TARGET_DIR}/releases/${TS}"
+
+          ssh "${SSH_USER}@${HOST}" "mkdir -p '${REMOTE_RELEASE_DIR}'"
+
+          scp tradingbot.jar "${SSH_USER}@${HOST}:'${REMOTE_RELEASE_DIR}/tradingbot.jar'"
+
+          ssh "${SSH_USER}@${HOST}" "ln -sfn '${REMOTE_RELEASE_DIR}' '${TARGET_DIR}/current' && cd '${TARGET_DIR}/releases' && ls -1t | tail -n +6 | xargs -r -I {} rm -rf '{}'"
 
       - name: Restart & verify service
         run: |
