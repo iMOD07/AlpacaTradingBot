@@ -105,6 +105,15 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- TDLight Natives (Windows x64) -->
+        <dependency>
+            <groupId>it.tdlight</groupId>
+            <artifactId>tdlight-natives</artifactId>
+            <classifier>windows_amd64</classifier>
+            <scope>runtime</scope>
+        </dependency>
+
+
         <dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
