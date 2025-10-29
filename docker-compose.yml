@@ -1,0 +1,29 @@
+services:
+  tradingbot:
+    build: .
+    container_name: tradingbot
+    env_file:
+      - .env.tradingbot
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./tdlight-session:/app/sessions
+    depends_on:
+      - postgres
+    restart: always
+
+  postgres:
+    image: postgres:16
+    container_name: pg16-bot
+    environment:
+      POSTGRES_USER: imod98
+      POSTGRES_PASSWORD: rrRR@@102030
+      POSTGRES_DB: alpaca_bot
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  pgdata:

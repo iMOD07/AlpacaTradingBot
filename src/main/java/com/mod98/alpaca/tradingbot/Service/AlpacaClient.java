@@ -47,6 +47,12 @@ public class AlpacaClient {
         if (keyId == null || secretKey == null || baseUrl == null || dataUrl == null) {
             throw new IllegalStateException("AlpacaProperties is not fully configured");
         }
+        try {
+            JsonNode acc = getAccount();
+            System.out.println("Alpaca API connected successfully. Account ID: " + acc.path("id").asText("unknown"));
+        } catch (Exception e) {
+            System.err.println("Failed to connect to Alpaca API → " + e.getMessage());
+        }
     }
 
     // ---- Public APIs (Account information) ----
